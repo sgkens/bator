@@ -95,6 +95,19 @@ export interface ProxyRoute {
   latency: number;
 }
 
+export interface Workspace {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  config: ProjectConfig;
+}
+
+export interface CodeSnippet {
+  language: 'curl' | 'javascript' | 'axios' | 'python' | 'go';
+  code: string;
+}
+
 export interface ProjectConfig {
   tables: Table[];
   relations: Relation[];
@@ -105,4 +118,15 @@ export interface ProjectConfig {
   environments: Environment[];
   vault: VaultSecret[];
   proxies: ProxyRoute[];
+}
+
+export interface BatorApp {
+  workspaces: Workspace[];
+  activeWorkspaceId: string;
+  settings: {
+    theme: 'light' | 'dark' | 'system';
+    fontSize: number;
+    showGrid: boolean;
+    autoSave: boolean;
+  };
 }
