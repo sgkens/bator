@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -58,7 +58,7 @@ export const SchemaEditor: React.FC = () => {
     type: 'table',
     position: { x: table.x, y: table.y },
     data: table,
-  })), [activeWorkspace.config.tables]);
+  })), [activeWorkspace.id]); // Only recompute when workspace changes
 
   const initialEdges: Edge[] = useMemo(() => activeWorkspace.config.relations.map(rel => ({
     id: `${rel.from}-${rel.fromField}-${rel.to}-${rel.toField}`,
@@ -68,10 +68,25 @@ export const SchemaEditor: React.FC = () => {
     targetHandle: `${rel.to}-${rel.toField}-target`,
     animated: true,
     style: { stroke: '#3b82f6' },
-  })), [activeWorkspace.config.relations]);
+  })), [activeWorkspace.id]); // Only recompute when workspace changes
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Sync state when workspace ID changes
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [activeWorkspace.id, initialNodes, initialEdges, setNodes, setEdges]);
+
+  // Persist node positions on drag end or other changes
+  const onNodeDragStop = useCallback((_: any, node: Node) => {
+    updateActiveWorkspace({
+      tables: activeWorkspace.config.tables.map(t => 
+        t.id === node.id ? { ...t, x: node.position.x, y: node.position.y } : t
+      )
+    });
+  }, [activeWorkspace.config.tables, updateActiveWorkspace]);
 
   const onConnect = useCallback((params: Connection) => {
     setEdges((eds) => addEdge(params, eds));
@@ -86,7 +101,7 @@ export const SchemaEditor: React.FC = () => {
     updateActiveWorkspace({
       relations: [...activeWorkspace.config.relations, newRelation]
     });
-  }, [activeWorkspace.config.relations, updateActiveWorkspace]);
+  }, [activeWorkspace.config.relations, updateActiveWorkspace, setEdges]);
 
   return (
     <div className="w-full h-full bg-slate-950">
@@ -96,6 +111,7 @@ export const SchemaEditor: React.FC = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
       >

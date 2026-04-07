@@ -1,17 +1,21 @@
-import { Endpoint } from '../types';
+import { Endpoint, CodeGenerator } from '../types';
 
-export const generateCode = (endpoint: Endpoint, language: string): string => {
-  const { method, path } = endpoint;
-  const baseUrl = 'http://localhost:3000';
-  const fullUrl = `${baseUrl}${path}`;
-
-  switch (language) {
-    case 'curl':
-      return `curl -X ${method} "${fullUrl}" \\
+const generators: Record<string, CodeGenerator> = {
+  curl: {
+    language: 'curl',
+    generate: (endpoint: Endpoint) => {
+      const { method, path } = endpoint;
+      const baseUrl = 'http://localhost:3000';
+      return `curl -X ${method} "${baseUrl}${path}" \\
   -H "Content-Type: application/json"`;
-    
-    case 'javascript':
-      return `fetch("${fullUrl}", {
+    }
+  },
+  javascript: {
+    language: 'javascript',
+    generate: (endpoint: Endpoint) => {
+      const { method, path } = endpoint;
+      const baseUrl = 'http://localhost:3000';
+      return `fetch("${baseUrl}${path}", {
   method: "${method}",
   headers: {
     "Content-Type": "application/json"
@@ -19,13 +23,18 @@ export const generateCode = (endpoint: Endpoint, language: string): string => {
 })
 .then(response => response.json())
 .then(data => console.log(data));`;
-
-    case 'axios':
+    }
+  },
+  axios: {
+    language: 'axios',
+    generate: (endpoint: Endpoint) => {
+      const { method, path } = endpoint;
+      const baseUrl = 'http://localhost:3000';
       return `import axios from 'axios';
 
 axios({
   method: "${method.toLowerCase()}",
-  url: "${fullUrl}",
+  url: "${baseUrl}${path}",
   headers: {
     "Content-Type": "application/json"
   }
@@ -33,14 +42,28 @@ axios({
 .then(response => {
   console.log(response.data);
 });`;
-
-    case 'python':
+    }
+  },
+  python: {
+    language: 'python',
+    generate: (endpoint: Endpoint) => {
+      const { method, path } = endpoint;
+      const baseUrl = 'http://localhost:3000';
       return `import requests
 
-response = requests.${method.toLowerCase()}("${fullUrl}")
+response = requests.${method.toLowerCase()}("${baseUrl}${path}")
 print(response.json())`;
-
-    default:
-      return '';
+    }
   }
+};
+
+export const generateCode = (endpoint: Endpoint, language: string): string => {
+  const generator = generators[language];
+  return generator ? generator.generate(endpoint) : '';
+};
+
+export const getAvailableLanguages = () => Object.keys(generators);
+
+export const registerGenerator = (generator: CodeGenerator) => {
+  generators[generator.language] = generator;
 };

@@ -104,8 +104,13 @@ export interface Workspace {
 }
 
 export interface CodeSnippet {
-  language: 'curl' | 'javascript' | 'axios' | 'python' | 'go';
+  language: string;
   code: string;
+}
+
+export interface CodeGenerator {
+  language: string;
+  generate: (endpoint: Endpoint) => string;
 }
 
 export interface ProjectConfig {

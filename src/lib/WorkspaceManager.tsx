@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { Workspace, BatorApp, ProjectConfig } from '../types';
 
 interface WorkspaceContextType {
@@ -6,6 +6,7 @@ interface WorkspaceContextType {
   activeWorkspace: Workspace;
   setActiveWorkspace: (id: string) => void;
   addWorkspace: (name: string) => void;
+  deleteWorkspace: (id: string) => void;
   updateActiveWorkspace: (config: Partial<ProjectConfig>) => void;
 }
 
@@ -23,22 +24,32 @@ const defaultConfig: ProjectConfig = {
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
+const createDefaultWorkspace = (id: string, name: string): Workspace => ({
+  id,
+  name,
+  description: 'Primary workspace',
+  icon: 'Layout',
+  config: { ...defaultConfig }
+});
+
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [appState, setAppState] = useState<BatorApp>(() => {
-    const saved = localStorage.getItem('bator_app');
-    if (saved) return JSON.parse(saved);
+    try {
+      const saved = localStorage.getItem('bator_app');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.workspaces?.length && parsed.activeWorkspaceId) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load bator_app from localStorage', e);
+    }
     
-    const initialWorkspace: Workspace = {
-      id: 'default',
-      name: 'Main Project',
-      description: 'Your primary workspace',
-      icon: 'Layout',
-      config: defaultConfig
-    };
-
+    const initialId = crypto.randomUUID();
     return {
-      workspaces: [initialWorkspace],
-      activeWorkspaceId: 'default',
+      workspaces: [createDefaultWorkspace(initialId, 'Main Project')],
+      activeWorkspaceId: initialId,
       settings: {
         theme: 'dark',
         fontSize: 14,
@@ -49,31 +60,43 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
 
   useEffect(() => {
-    localStorage.setItem('bator_app', JSON.stringify(appState));
+    if (appState.settings.autoSave) {
+      localStorage.setItem('bator_app', JSON.stringify(appState));
+    }
   }, [appState]);
 
-  const activeWorkspace = appState.workspaces.find(w => w.id === appState.activeWorkspaceId) || appState.workspaces[0];
+  const activeWorkspace = useMemo(() => 
+    appState.workspaces.find(w => w.id === appState.activeWorkspaceId) || appState.workspaces[0],
+    [appState.workspaces, appState.activeWorkspaceId]
+  );
 
-  const setActiveWorkspace = (id: string) => {
+  const setActiveWorkspace = useCallback((id: string) => {
     setAppState(prev => ({ ...prev, activeWorkspaceId: id }));
-  };
+  }, []);
 
-  const addWorkspace = (name: string) => {
-    const newWorkspace: Workspace = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      description: 'New workspace',
-      icon: 'Plus',
-      config: defaultConfig
-    };
+  const addWorkspace = useCallback((name: string) => {
+    const newWorkspace = createDefaultWorkspace(crypto.randomUUID(), name);
     setAppState(prev => ({
       ...prev,
       workspaces: [...prev.workspaces, newWorkspace],
       activeWorkspaceId: newWorkspace.id
     }));
-  };
+  }, []);
 
-  const updateActiveWorkspace = (configUpdates: Partial<ProjectConfig>) => {
+  const deleteWorkspace = useCallback((id: string) => {
+    setAppState(prev => {
+      if (prev.workspaces.length <= 1) return prev;
+      const nextWorkspaces = prev.workspaces.filter(w => w.id !== id);
+      const nextActiveId = prev.activeWorkspaceId === id ? nextWorkspaces[0].id : prev.activeWorkspaceId;
+      return {
+        ...prev,
+        workspaces: nextWorkspaces,
+        activeWorkspaceId: nextActiveId
+      };
+    });
+  }, []);
+
+  const updateActiveWorkspace = useCallback((configUpdates: Partial<ProjectConfig>) => {
     setAppState(prev => ({
       ...prev,
       workspaces: prev.workspaces.map(w => 
@@ -82,7 +105,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           : w
       )
     }));
-  };
+  }, []);
 
   return (
     <WorkspaceContext.Provider value={{ 
@@ -90,6 +113,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       activeWorkspace, 
       setActiveWorkspace, 
       addWorkspace,
+      deleteWorkspace,
       updateActiveWorkspace
     }}>
       {children}
