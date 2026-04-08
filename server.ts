@@ -182,6 +182,8 @@ async function startServer() {
                 // Default generators
                 if (field.type === 'uuid') item[field.name] = faker.string.uuid();
                 else if (field.type === 'int') item[field.name] = faker.number.int();
+                else if (field.type === 'decimal') item[field.name] = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 });
+                else if (field.type === 'boolean') item[field.name] = faker.datatype.boolean();
                 else if (field.type === 'varchar') item[field.name] = faker.lorem.word();
                 else if (field.type === 'timestamp') item[field.name] = faker.date.recent().toISOString();
                 else item[field.name] = null;

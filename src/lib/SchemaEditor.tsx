@@ -9,7 +9,8 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   Handle,
-  Position
+  Position,
+  Panel
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Table, Relation } from '../types';
@@ -117,6 +118,31 @@ export const SchemaEditor: React.FC = () => {
       >
         <Background color="#334155" gap={20} />
         <Controls />
+        <Panel position="top-left" className="bg-slate-900 border border-slate-700 p-1 rounded-md shadow-xl">
+          <button 
+            onClick={() => {
+              const name = window.prompt("Table Name:");
+              if (name) {
+                const newTable: Table = {
+                  id: name.toLowerCase().replace(/\s+/g, '_'),
+                  name,
+                  color: '#3b82f6',
+                  x: 100,
+                  y: 100,
+                  fields: [
+                    { name: 'id', type: 'uuid', pk: true, faker: 'string.uuid' }
+                  ]
+                };
+                updateActiveWorkspace({
+                  tables: [...activeWorkspace.config.tables, newTable]
+                });
+              }
+            }}
+            className="px-2 py-1 text-[10px] font-bold text-blue-400 hover:bg-slate-800 rounded transition-all"
+          >
+            + Add Table
+          </button>
+        </Panel>
       </ReactFlow>
     </div>
   );
